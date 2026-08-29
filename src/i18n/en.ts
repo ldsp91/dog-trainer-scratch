@@ -6,6 +6,7 @@ export const en = {
   session: {
     start: 'Start training session',
     stop: 'Stop training session',
+    tapToPlay: '🔇 Tap anywhere to start the sound',
   },
   thunder: {
     play: 'Play thunder clap',

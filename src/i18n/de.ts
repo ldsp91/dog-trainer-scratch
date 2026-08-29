@@ -8,6 +8,7 @@ export const de: Translation = {
   session: {
     start: "Trainingsdurchgang starten",
     stop: "Trainingsdurchgang beenden",
+    tapToPlay: "🔇 Tippe irgendwo, um den Sound zu starten",
   },
   thunder: {
     play: "Donner abspielen",

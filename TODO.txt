@@ -1,3 +1,2 @@
-- Der Start/Stop Button muss nicht so prominent sein (oder eigtl. kann man ganz weg lassen)
-- Man soll auswählen können welcher Sound abgespielt wird (random icon, und dann alle sounds von 1-X)
-- Lautstärken-Anzeige updated auf Android nicht
+- Auto start von Session
+- Bei Auswahl von Sound soll automatisch abgepsielt werden

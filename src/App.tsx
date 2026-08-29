@@ -20,6 +20,7 @@ function AppContent() {
     envelope,
     getThunderElapsed,
     state,
+    contextSuspended,
     loading,
     loaded,
     error,
@@ -100,7 +101,9 @@ function AppContent() {
         <div className="title-row">
           <h1>{t('app.title')}</h1>
           <SessionControl
-            isPlaying={sessionActive}
+            // While the browser blocks autoplay the audio is still silent, so
+            // the button acts as "start" (the click also unblocks audio).
+            isPlaying={sessionActive && !contextSuspended}
             onPlay={handlePlay}
             onStop={handleStop}
           />
@@ -110,6 +113,11 @@ function AppContent() {
       </header>
 
       <main>
+        {sessionActive && contextSuspended && (
+          <p className="autoplay-hint" role="status">
+            {t('session.tapToPlay')}
+          </p>
+        )}
         <div className="thunder-zone">
           <SoundVisualizer
             analyser={analyser}

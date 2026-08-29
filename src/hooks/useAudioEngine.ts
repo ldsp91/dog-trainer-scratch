@@ -1,5 +1,6 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
 import { AudioEngine } from '../audio/engine';
+import { loadSettings } from '../utils/storage';
 import type { PlaybackState, ThunderEnvelope } from '../types';
 
 interface UseAudioEngineReturn {
@@ -10,6 +11,8 @@ interface UseAudioEngineReturn {
   /** Elapsed seconds of the active clap; polled per frame by the visualizer. */
   getThunderElapsed: () => number | null;
   state: PlaybackState;
+  /** True while the browser's autoplay policy blocks the audio output. */
+  contextSuspended: boolean;
   loading: boolean;
   loaded: boolean;
   error: string | null;
@@ -45,6 +48,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
   const [selectedThunderIndex, setSelectedThunderIndex] = useState<number>(-1);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [envelope, setEnvelope] = useState<ThunderEnvelope | null>(null);
+  const [contextSuspended, setContextSuspended] = useState(false);
 
   useEffect(() => {
     if (engine.current) return;
@@ -64,12 +68,20 @@ export function useAudioEngine(): UseAudioEngineReturn {
       setSelectedThunderIndex(index);
     });
 
+    audio.onContextStateChanged(() => {
+      setContextSuspended(audio.isSuspended);
+    });
+
     audio.init().then(() => {
       const status = audio.loadingStatus;
       setLoading(false);
       if (status.error) {
         setError(status.error);
       }
+      // Start the session automatically on page load — the rain begins
+      // immediately (once the browser's autoplay policy allows it).
+      audio.startRain(loadSettings().rainVolume);
+      setContextSuspended(audio.isSuspended);
       setState(audio.getState());
       setThunderCount(audio.getThunderCount());
       setAnalyser(audio.getAnalyser());
@@ -79,10 +91,27 @@ export function useAudioEngine(): UseAudioEngineReturn {
     });
   }, []);
 
+  // The AudioContext is created before any user gesture, so browsers start it
+  // suspended (autoplay policy). The rain source is already scheduled and will
+  // begin the moment the context runs, so just resume it on the first tap or
+  // key press.
+  useEffect(() => {
+    const resume = () => {
+      void engine.current?.resume();
+    };
+    window.addEventListener('pointerdown', resume);
+    window.addEventListener('keydown', resume);
+    return () => {
+      window.removeEventListener('pointerdown', resume);
+      window.removeEventListener('keydown', resume);
+    };
+  }, []);
+
   const refresh = useCallback(() => {
     if (engine.current) {
       setState(engine.current.getState());
       setThunderCount(engine.current.getThunderCount());
+      setContextSuspended(engine.current.isSuspended);
     }
   }, []);
 
@@ -135,6 +164,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
     envelope,
     getThunderElapsed,
     state,
+    contextSuspended,
     thunderPlaying,
     loading,
     loaded: engine.current?.loadingStatus.loaded ?? false,

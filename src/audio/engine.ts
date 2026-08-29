@@ -62,6 +62,7 @@ export class AudioEngine {
   private onActiveThunderFileChange: ((file: string | null) => void) | null =
     null;
   private onSelectedThunderChange: ((index: number) => void) | null = null;
+  private onContextStateChange: (() => void) | null = null;
 
   onThunderStateChanged(cb: (playing: boolean) => void): void {
     this.onThunderStateChange = cb;
@@ -73,6 +74,28 @@ export class AudioEngine {
 
   onSelectedThunderChanged(cb: (index: number) => void): void {
     this.onSelectedThunderChange = cb;
+  }
+
+  /** Notify when the AudioContext state changes (autoplay policy, suspend). */
+  onContextStateChanged(cb: () => void): void {
+    this.onContextStateChange = cb;
+  }
+
+  /** True if the browser's autoplay policy is currently blocking audio. */
+  get isSuspended(): boolean {
+    return this.ctx !== null && this.ctx.state === "suspended";
+  }
+
+  /** Resume the context if blocked by the autoplay policy. Only succeeds
+   * inside a user-gesture handler (tap, key press, click). */
+  async resume(): Promise<void> {
+    if (this.ctx && this.ctx.state === "suspended") {
+      try {
+        await this.ctx.resume();
+      } catch {
+        /* still blocked; the next user gesture will retry */
+      }
+    }
   }
 
   getSelectedThunderIndex(): number {
@@ -107,6 +130,7 @@ export class AudioEngine {
 
   async init(): Promise<void> {
     this.ctx = new AudioContext();
+    this.ctx.onstatechange = () => this.onContextStateChange?.();
 
     this.masterGain = this.ctx.createGain();
     this.masterGain.gain.value = 1;
