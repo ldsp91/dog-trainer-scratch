@@ -23,7 +23,6 @@ const BINS = SPECTRUM_BARS / 2;
 const FIRST_BIN = 2; // skip DC + subsonic bins
 const MAP_BAR = 3; // px, shortest map bar (silence)
 const IDLE_BAR = 3; // px, idle stubs
-const FLASH_AT = 130; // 0–255 average energy where the clap flash kicks in
 const PEAK_T = 0.75; // normalized envelope value that marks a "loud bang"
 
 // Mirror the theme vars: --accent (#38bdf8) → --thunder (#f97316)
@@ -104,30 +103,6 @@ export function SoundVisualizer({ analyser, active, envelope, getElapsed }: Prop
       ctx.stroke();
     };
 
-    const drawFlash = (energy: number) => {
-      // Soft radial burst on the leading edge of a clap; the analyser's
-      // smoothingTimeConstant already gives it a smooth tail.
-      const flash = Math.max(0, energy - FLASH_AT) / (255 - FLASH_AT);
-      if (flash <= 0) return;
-      const mid = inner + maxLen / 2;
-      const grad = ctx.createRadialGradient(
-        center, center, inner - 12,
-        center, center, mid + 14,
-      );
-      grad.addColorStop(0, 'rgba(249, 115, 22, 0)');
-      grad.addColorStop(0.5, `rgba(249, 115, 22, ${(0.25 * flash).toFixed(3)})`);
-      grad.addColorStop(1, 'rgba(249, 115, 22, 0)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, size, size);
-    };
-
-    const liveEnergy = () => {
-      analyser.getByteFrequencyData(data);
-      let sum = 0;
-      for (let i = 0; i < data.length; i++) sum += data[i];
-      return (sum / data.length) * 255;
-    };
-
     const drawIdle = () => {
       ctx.clearRect(0, 0, size, size);
       const step = (Math.PI * 2 * inner) / SPECTRUM_BARS;
@@ -139,18 +114,13 @@ export function SoundVisualizer({ analyser, active, envelope, getElapsed }: Prop
     /** Live spectrum fallback: what's sounding right now (rain floor etc.). */
     const drawSpectrum = () => {
       analyser.getByteFrequencyData(data);
-      let sum = 0;
       const values = new Array(SPECTRUM_BARS);
       for (let i = 0; i < SPECTRUM_BARS; i++) {
         const bin = i < BINS ? i : SPECTRUM_BARS - 1 - i;
-        const v = data[FIRST_BIN + bin] / 255;
-        values[i] = v;
-        sum += v;
+        values[i] = data[FIRST_BIN + bin] / 255;
       }
-      const energy = (sum / SPECTRUM_BARS) * 255;
 
       ctx.clearRect(0, 0, size, size);
-      drawFlash(energy);
 
       const step = (Math.PI * 2 * inner) / SPECTRUM_BARS;
       for (let i = 0; i < SPECTRUM_BARS; i++) {
@@ -162,7 +132,6 @@ export function SoundVisualizer({ analyser, active, envelope, getElapsed }: Prop
 
     /** Time map: the full shape of the clap around the ring. */
     const drawMap = (env: ThunderEnvelope) => {
-      const energy = liveEnergy();
       const elapsed = getElapsed();
       const p =
         elapsed !== null && env.duration > 0
@@ -170,7 +139,6 @@ export function SoundVisualizer({ analyser, active, envelope, getElapsed }: Prop
           : null;
 
       ctx.clearRect(0, 0, size, size);
-      drawFlash(energy);
 
       const { peaks } = env;
       const step = (Math.PI * 2 * inner) / MAP_BARS;

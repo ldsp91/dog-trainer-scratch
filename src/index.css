@@ -218,12 +218,16 @@ input[type='range'] {
    positioned over the zone with pointer-events: none, and its bars are drawn
    entirely outside the button's edge — so the visualizer can never cover or
    block the button (or anything below it). */
+/* Sized to the visualizer canvas (240/280px, same breakpoint) so the ring
+   fits entirely inside the zone and can't reach the text above or below. */
 .thunder-zone {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-top: 0.5rem;
+  width: 240px;
+  height: 240px;
 }
 
 .visualizer-canvas {
@@ -605,6 +609,11 @@ input[type='range']::-moz-range-thumb {
 
 /* ===== Responsive ===== */
 @media (min-width: 480px) {
+  .thunder-zone {
+    width: 280px;
+    height: 280px;
+  }
+
   .thunder-btn {
     width: 180px;
     height: 180px;
