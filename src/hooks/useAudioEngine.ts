@@ -9,10 +9,12 @@ interface UseAudioEngineReturn {
   error: string | null;
   thunderPlaying: boolean;
   activeThunderFile: string | null;
+  selectedThunderIndex: number;
   startSession: (rainVolume: number) => void;
   stopSession: () => void;
   playThunder: () => boolean;
   stopThunder: () => void;
+  setSelectedThunderIndex: (index: number) => void;
   setRainVolume: (v: number) => void;
   setThunderVolume: (v: number) => void;
   thunderCount: number;
@@ -34,6 +36,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
   const [thunderCount, setThunderCount] = useState(0);
   const [thunderPlaying, setThunderPlaying] = useState(false);
   const [activeThunderFile, setActiveThunderFile] = useState<string | null>(null);
+  const [selectedThunderIndex, setSelectedThunderIndex] = useState<number>(-1);
 
   useEffect(() => {
     if (engine.current) return;
@@ -47,6 +50,10 @@ export function useAudioEngine(): UseAudioEngineReturn {
 
     audio.onActiveThunderFileChanged((file) => {
       setActiveThunderFile(file);
+    });
+
+    audio.onSelectedThunderChanged((index) => {
+      setSelectedThunderIndex(index);
     });
 
     audio.init().then(() => {
@@ -88,6 +95,10 @@ export function useAudioEngine(): UseAudioEngineReturn {
     engine.current?.stopThunder();
   }, []);
 
+  const setSelectedThunderIndexInternal = useCallback((index: number) => {
+    engine.current?.setSelectedThunderIndex(index);
+  }, []);
+
   const setRainVolume = useCallback((v: number) => {
     engine.current?.setRainVolume(v);
     refresh();
@@ -108,8 +119,10 @@ export function useAudioEngine(): UseAudioEngineReturn {
     playThunder,
     stopThunder,
     activeThunderFile,
+    selectedThunderIndex,
     setRainVolume,
     setThunderVolume,
     thunderCount,
+    setSelectedThunderIndex: setSelectedThunderIndexInternal,
   };
 }

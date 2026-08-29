@@ -46,9 +46,11 @@ export class AudioEngine {
   private activeThunderGain: GainNode | null = null;
   private _thunderPlaying = false;
   private _activeThunderFile: string | null = null;
+  private _selectedThunderIndex = -1; // -1 = random; otherwise index into thunderBuffers
   private thunderGen = 0; // increments each new clap; stale callbacks are no-ops
   private onThunderStateChange: ((playing: boolean) => void) | null = null;
   private onActiveThunderFileChange: ((file: string | null) => void) | null = null;
+  private onSelectedThunderChange: ((index: number) => void) | null = null;
 
   onThunderStateChanged(cb: (playing: boolean) => void): void {
     this.onThunderStateChange = cb;
@@ -56,6 +58,19 @@ export class AudioEngine {
 
   onActiveThunderFileChanged(cb: (file: string | null) => void): void {
     this.onActiveThunderFileChange = cb;
+  }
+
+  onSelectedThunderChanged(cb: (index: number) => void): void {
+    this.onSelectedThunderChange = cb;
+  }
+
+  getSelectedThunderIndex(): number {
+    return this._selectedThunderIndex;
+  }
+
+  setSelectedThunderIndex(index: number): void {
+    this._selectedThunderIndex = index;
+    this.onSelectedThunderChange?.(index);
   }
 
   private notifyThunderState(playing: boolean, gen: number): void {
@@ -209,8 +224,11 @@ export class AudioEngine {
     if (now - this.lastThunderTime < ANTI_SPAM_DELAY) return false;
     this.lastThunderTime = now;
 
-    // Pick a random thunder sound
-    const idx = Math.floor(Math.random() * this.thunderBuffers.length);
+    // Pick the thunder sound: explicit selection if set, otherwise random
+    let idx = this._selectedThunderIndex;
+    if (idx < 0 || idx >= this.thunderBuffers.length) {
+      idx = Math.floor(Math.random() * this.thunderBuffers.length);
+    }
     const thunderEntry = this.thunderBuffers[idx];
     const buffer = thunderEntry.buffer;
     this._activeThunderFile = thunderEntry.name;

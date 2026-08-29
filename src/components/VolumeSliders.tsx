@@ -11,6 +11,9 @@ export function VolumeSliders({
   onRainChange,
   onThunderChange,
 }: Props) {
+  // `onInput` fires continuously while the thumb is dragged, whereas some
+  // Android browsers only fire `change` on release. Binding both keeps the
+  // percentage label live on Android as well as desktop.
   return (
     <div className="volume-sliders">
       <div className="slider-group">
@@ -25,7 +28,8 @@ export function VolumeSliders({
           max="100"
           step="1"
           value={rainVolume}
-          onChange={(e) => onRainChange(Number(e.target.value))}
+          onChange={(e) => onRainChange(Number(e.currentTarget.value))}
+          onInput={(e) => onRainChange(Number(e.currentTarget.value))}
           aria-label="Rain volume"
         />
       </div>
@@ -42,7 +46,8 @@ export function VolumeSliders({
           max="100"
           step="1"
           value={thunderVolume}
-          onChange={(e) => onThunderChange(Number(e.target.value))}
+          onChange={(e) => onThunderChange(Number(e.currentTarget.value))}
+          onInput={(e) => onThunderChange(Number(e.currentTarget.value))}
           aria-label="Thunder volume"
         />
       </div>

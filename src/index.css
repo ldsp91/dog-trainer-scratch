@@ -85,36 +85,137 @@ main {
 }
 
 /* ===== Session Button ===== */
+/* Kept deliberately low-profile: a small, muted toggle rather than a hero
+   button. Audio must still be started by a user gesture, so the control is
+   kept (just not prominent). */
 .session-btn {
-  width: 100%;
-  max-width: 280px;
-  padding: 1rem 1.5rem;
-  font-size: 1.15rem;
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
   font-family: inherit;
-  border: none;
-  border-radius: var(--radius);
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--text-muted);
+  border-radius: 999px;
   cursor: pointer;
-  transition: background 0.2s ease, transform 0.1s ease;
-  letter-spacing: 0.02em;
-  min-height: 56px;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+  letter-spacing: 0.01em;
+  min-height: 40px;
 }
+
+.session-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+.session-btn:active { transform: scale(0.97); }
 
 .session-btn.stopped {
-  background: var(--success);
-  color: #fff;
+  border-color: var(--success);
+  color: var(--success);
 }
-
-.session-btn.stopped:hover { background: var(--success-hover); }
-.session-btn.stopped:active { transform: scale(0.97); }
+.session-btn.stopped:hover {
+  background: rgba(34, 197, 94, 0.12);
+}
 
 .session-btn.playing {
-  background: var(--danger);
-  color: #fff;
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.session-btn.playing:hover {
+  background: rgba(239, 68, 68, 0.12);
 }
 
-.session-btn.playing:hover { background: var(--danger-hover); }
-.session-btn.playing:active { transform: scale(0.97); }
+.session-btn-icon {
+  font-size: 0.7em;
+  line-height: 1;
+}
+
+/* ===== Sound Selector ===== */
+.sound-selector {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+}
+
+.sound-selector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sound-selector-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.sound-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sound-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  min-width: 48px;
+  min-height: 40px;
+}
+
+.sound-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+.sound-btn:active { transform: scale(0.95); }
+
+.sound-btn.selected {
+  color: var(--thunder);
+  border-color: var(--thunder);
+  background: rgba(249, 115, 22, 0.14);
+}
+
+/* ===== Volume Sliders ===== */
+.volume-sliders {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+}
+
+/* Ensures the slider, not the page, captures thumb drags on mobile so the
+   value keeps reporting during a drag (helps the Android display bug). */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-secondary);
+  outline: none;
+  cursor: pointer;
+  touch-action: pan-y;
+}
 
 /* ===== Thunder Button ===== */
 .thunder-btn {

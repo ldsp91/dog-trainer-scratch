@@ -1,13 +1,12 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useCallback } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { SessionControl } from './components/SessionControl';
+import { SoundSelector } from './components/SoundSelector';
 import { ThunderTrigger } from './components/ThunderTrigger';
 import { VolumeSliders } from './components/VolumeSliders';
-import { StarRating } from './components/StarRating';
 import { useAudioEngine } from './hooks/useAudioEngine';
 import { useAudioSettings } from './hooks/useAudioSettings';
-import { saveRating } from './utils/storage';
 
 function AppContent() {
   const { settings, setRainVolume, setThunderVolume } = useAudioSettings();
@@ -17,6 +16,7 @@ function AppContent() {
     loaded,
     error,
     thunderPlaying,
+    selectedThunderIndex,
     startSession,
     stopSession,
     playThunder,
@@ -25,24 +25,8 @@ function AppContent() {
     setRainVolume: setEngineRainVolume,
     setThunderVolume: setEngineThunderVolume,
     thunderCount,
+    setSelectedThunderIndex,
   } = useAudioEngine();
-
-  const [showRating, setShowRating] = useState(false);
-  const [clapCounter, setClapCounter] = useState(0);
-  const ratingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Auto-dismiss rating after 8 seconds
-  useEffect(() => {
-    if (showRating && ratingTimer.current) {
-      clearTimeout(ratingTimer.current);
-    }
-    if (showRating) {
-      ratingTimer.current = setTimeout(() => setShowRating(false), 8000);
-    }
-    return () => {
-      if (ratingTimer.current) clearTimeout(ratingTimer.current);
-    };
-  }, [showRating]);
 
   const handlePlay = useCallback(() => {
     startSession(settings.rainVolume);
@@ -50,7 +34,6 @@ function AppContent() {
 
   const handleStop = useCallback(() => {
     stopSession();
-    setShowRating(false);
   }, [stopSession]);
 
   const handleThunder = useCallback(() => {
@@ -58,25 +41,8 @@ function AppContent() {
       stopThunder();
       return;
     }
-    const played = playThunder();
-    if (played === true) {
-      setClapCounter((c) => c + 1);
-      setShowRating(true);
-    }
+    playThunder();
   }, [thunderPlaying, playThunder, stopThunder]);
-
-  const handleRate = useCallback((rating: number) => {
-    saveRating({
-      clapId: clapCounter,
-      rating,
-      timestamp: Date.now(),
-    });
-    setShowRating(false);
-  }, [clapCounter]);
-
-  const handleSkipRating = useCallback(() => {
-    setShowRating(false);
-  }, []);
 
   const handleRainChange = useCallback(
     (v: number) => {
@@ -142,17 +108,17 @@ function AppContent() {
 
         <p className={`active-sound ${activeThunderFile ? 'active' : ''}`}>{activeThunderFile ? `🔊 ${activeThunderFile}` : '⏸️ No thunder playing'}</p>
 
+        <SoundSelector
+          selectedIndex={selectedThunderIndex}
+          count={thunderCount}
+          onselect={setSelectedThunderIndex}
+        />
+
         <VolumeSliders
           rainVolume={settings.rainVolume}
           thunderVolume={settings.thunderVolume}
           onRainChange={handleRainChange}
           onThunderChange={handleThunderChange}
-        />
-
-        <StarRating
-          visible={showRating}
-          onRate={handleRate}
-          onSkip={handleSkipRating}
         />
 
         {thunderCount === 0 && loaded && (

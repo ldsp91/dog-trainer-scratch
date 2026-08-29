@@ -11,7 +11,12 @@ export function SessionControl({ isPlaying, onPlay, onStop }: Props) {
       onClick={isPlaying ? onStop : onPlay}
       aria-label={isPlaying ? 'Stop training session' : 'Start training session'}
     >
-      {isPlaying ? '■  Stop' : '▶  Start Session'}
+      <span className="session-btn-icon" aria-hidden="true">
+        {isPlaying ? '■' : '▶'}
+      </span>
+      <span className="session-btn-text">
+        {isPlaying ? 'Stop session' : 'Start session'}
+      </span>
     </button>
   );
 }
