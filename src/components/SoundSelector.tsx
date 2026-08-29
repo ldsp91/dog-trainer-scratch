@@ -23,7 +23,6 @@ export function SoundSelector({ selectedIndex, count, onselect }: Props) {
           aria-label="Random thunder sound"
         >
           <span aria-hidden="true">🎲</span>
-          <span>Random</span>
         </button>
 
         {Array.from({ length: count }, (_, i) => (

@@ -89,17 +89,18 @@ function AppContent() {
   return (
     <div className="app">
       <header>
-        <h1>⛈️ Thunder Trainer</h1>
+        <div className="title-row">
+          <h1>⛈️ Thunder Trainer</h1>
+          <SessionControl
+            isPlaying={sessionActive}
+            onPlay={handlePlay}
+            onStop={handleStop}
+          />
+        </div>
         <p className="subtitle">Controlled exposure for thunder-phobic dogs</p>
       </header>
 
       <main>
-        <SessionControl
-          isPlaying={sessionActive}
-          onPlay={handlePlay}
-          onStop={handleStop}
-        />
-
         <ThunderTrigger
           onTrigger={handleThunder}
           disabled={!sessionActive}
@@ -127,9 +128,6 @@ function AppContent() {
           </p>
         )}
 
-        {thunderCount > 0 && (
-          <p className="sound-count">{thunderCount} thunder sound{thunderCount !== 1 ? 's' : ''} loaded</p>
-        )}
       </main>
     </div>
   );
