@@ -97,7 +97,7 @@ main {
 /* Compact round play/stop control kept next to the title. Audio must still be
    started by a user gesture, so the control stays (just not prominent). */
 .session-icon-btn {
-  display: inline-flex;
+  display: none;
   align-items: center;
   justify-content: center;
   width: 36px;
