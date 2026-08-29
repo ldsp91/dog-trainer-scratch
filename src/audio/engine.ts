@@ -1,24 +1,25 @@
-import type { PlaybackState } from '../types';
+import type { PlaybackState } from "../types";
 
 // Base-aware so audio is served from the deployed subpath (e.g. /dog-trainer-scratch/sounds/),
 // not a hardcoded root. import.meta.env.BASE_URL mirrors the `base` in vite.config.ts.
 const SOUNDS_DIR = `${import.meta.env.BASE_URL}sounds`;
-const AUDIO_EXTENSIONS = ['.mp3', '.wav'] as const;
+const AUDIO_EXTENSIONS = [".mp3", ".wav"] as const;
 
-const RAIN_BASE = 'rain-loop';
-const THUNDER_BASES: string[] = [];
-for (let i = 1; i <= 10; i++) {
-  THUNDER_BASES.push(`thunder-${i}`);
-}
+const RAIN_BASE = "rain-loop";
+// A static host (GitHub Pages) can't list a directory, so we probe a bounded
+// range of thunder-N names at runtime and keep the ones that actually exist.
+const MAX_THUNDER_INDEX = 100;
 
 /** Fetch all available variants of a sound (tries .mp3, .wav)
-  * Filters by content-type to avoid picking up SPA fallback HTML from dev servers. */
-async function fetchSoundVariants(baseName: string): Promise<{ buffer: ArrayBuffer; url: string }[]> {
+ * Filters by content-type to avoid picking up SPA fallback HTML from dev servers. */
+async function fetchSoundVariants(
+  baseName: string,
+): Promise<{ buffer: ArrayBuffer; url: string }[]> {
   const variants: { buffer: ArrayBuffer; url: string }[] = [];
   for (const ext of AUDIO_EXTENSIONS) {
     const url = `${SOUNDS_DIR}/${baseName}${ext}`;
     const resp = await fetch(url);
-    if (resp.ok && resp.headers.get('content-type')?.startsWith('audio/')) {
+    if (resp.ok && resp.headers.get("content-type")?.startsWith("audio/")) {
       variants.push({ buffer: await resp.arrayBuffer(), url });
     }
   }
@@ -37,6 +38,7 @@ export class AudioEngine {
 
   private rainBuffer: AudioBuffer | null = null;
   private thunderBuffers: { buffer: AudioBuffer; name: string }[] = [];
+  private thunderTotalCount = 0; // number of thunder sounds present in public/sounds
 
   private isPlaying = false;
   private loaded = false;
@@ -51,7 +53,8 @@ export class AudioEngine {
   private _selectedThunderIndex = -1; // -1 = random; otherwise index into thunderBuffers
   private thunderGen = 0; // increments each new clap; stale callbacks are no-ops
   private onThunderStateChange: ((playing: boolean) => void) | null = null;
-  private onActiveThunderFileChange: ((file: string | null) => void) | null = null;
+  private onActiveThunderFileChange: ((file: string | null) => void) | null =
+    null;
   private onSelectedThunderChange: ((index: number) => void) | null = null;
 
   onThunderStateChanged(cb: (playing: boolean) => void): void {
@@ -111,14 +114,15 @@ export class AudioEngine {
       await this.loadSounds();
       this.loaded = true;
     } catch (err) {
-      this.loadError = err instanceof Error ? err.message : 'Failed to load audio';
+      this.loadError =
+        err instanceof Error ? err.message : "Failed to load audio";
     } finally {
       this.loading = false;
     }
   }
 
   private async loadSounds(): Promise<void> {
-    if (!this.ctx) throw new Error('AudioContext not created');
+    if (!this.ctx) throw new Error("AudioContext not created");
 
     // Load rain (required) — tries each extension, decodes first that works
     const rainVariants = await fetchSoundVariants(RAIN_BASE);
@@ -133,32 +137,44 @@ export class AudioEngine {
       } catch (e) {
         console.warn(`[audio] failed to decode rain: ${v.url}`, e);
         if (v === rainVariants[rainVariants.length - 1]) {
-          throw new Error(`Could not decode ${RAIN_BASE} (tried: ${rainVariants.map(v => v.url).join(', ')})`);
+          throw new Error(
+            `Could not decode ${RAIN_BASE} (tried: ${rainVariants.map((v) => v.url).join(", ")})`,
+          );
         }
       }
     }
 
-    // Load thunder sounds in parallel (best-effort)
+    // Discover how many thunder sounds exist by probing thunder-1 .. thunder-N.
+    // fetchSoundVariants already skips anything that isn't real audio (e.g. an
+    // SPA 404 page), so a missing file simply yields no variants. Best-effort:
+    // a failure to load the pool never aborts the session (rain still works).
     const results = await Promise.allSettled(
-      THUNDER_BASES.map(async (base) => {
+      Array.from({ length: MAX_THUNDER_INDEX }, (_, i) => i + 1).map(async (i) => {
+        const base = `thunder-${i}`;
         const variants = await fetchSoundVariants(base);
-        for (const v of variants) {
-          try {
-            const decoded = await this.ctx!.decodeAudioData(v.buffer);
-            const name = v.url.replace(SOUNDS_DIR + '/', '');
-            console.log(`[audio] loaded thunder: ${name}`);
-            return { buffer: decoded, name };
-          } catch (e) {
-            console.warn(`[audio] failed to decode: ${v.url}`, e);
-          }
+        if (variants.length === 0) return null;
+        try {
+          const decoded = await this.ctx!.decodeAudioData(variants[0].buffer);
+          const name = variants[0].url.replace(SOUNDS_DIR + "/", "");
+          console.log(`[audio] loaded thunder: ${name}`);
+          return { buffer: decoded, name };
+        } catch (e) {
+          console.warn(`[audio] failed to decode: ${variants[0].url}`, e);
+          return null;
         }
-        return null;
-      })
+      }),
     );
 
-    this.thunderBuffers = results
-      .filter((r): r is PromiseFulfilledResult<{ buffer: AudioBuffer; name: string }> => r.status === 'fulfilled' && r.value !== null)
+    const loaded = results
+      .filter(
+        (
+          r,
+        ): r is PromiseFulfilledResult<{ buffer: AudioBuffer; name: string }> =>
+          r.status === "fulfilled" && r.value !== null,
+      )
       .map((r) => r.value!);
+    this.thunderBuffers = loaded;
+    this.thunderTotalCount = loaded.length;
   }
 
   // ---- Thunder file info ----
@@ -171,7 +187,7 @@ export class AudioEngine {
 
   startRain(volume: number, fadeDuration = FADE_DURATION): void {
     if (!this.ctx || !this.rainBuffer || !this.rainGain) return;
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.ctx.state === "suspended") this.ctx.resume();
 
     this._rainVolume = volume;
 
@@ -186,7 +202,10 @@ export class AudioEngine {
     const now = this.ctx.currentTime;
     this.rainGain.gain.cancelScheduledValues(now);
     this.rainGain.gain.setValueAtTime(0, now);
-    this.rainGain.gain.linearRampToValueAtTime(volume / 100, now + fadeDuration);
+    this.rainGain.gain.linearRampToValueAtTime(
+      volume / 100,
+      now + fadeDuration,
+    );
 
     source.start(now);
     source.onended = () => {
@@ -220,7 +239,11 @@ export class AudioEngine {
 
   private stopRainSource(): void {
     if (this.rainSource) {
-      try { this.rainSource.stop(); } catch { /* already stopped */ }
+      try {
+        this.rainSource.stop();
+      } catch {
+        /* already stopped */
+      }
       this.rainSource.disconnect();
       this.rainSource = null;
     }
@@ -230,7 +253,7 @@ export class AudioEngine {
 
   playThunder(): boolean {
     if (!this.ctx || this.thunderBuffers.length === 0) return false;
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.ctx.state === "suspended") this.ctx.resume();
 
     const now = Date.now();
     if (now - this.lastThunderTime < ANTI_SPAM_DELAY) return false;
@@ -252,7 +275,11 @@ export class AudioEngine {
 
     // Cut any currently playing thunder
     if (this.activeThunderSource) {
-      try { this.activeThunderSource.stop(); } catch { /* */ }
+      try {
+        this.activeThunderSource.stop();
+      } catch {
+        /* */
+      }
       this.activeThunderSource.disconnect();
       this.activeThunderSource = null;
     }
@@ -291,7 +318,11 @@ export class AudioEngine {
 
   stopThunder(): void {
     if (this.activeThunderSource) {
-      try { this.activeThunderSource.stop(); } catch { /* */ }
+      try {
+        this.activeThunderSource.stop();
+      } catch {
+        /* */
+      }
       this.activeThunderSource.disconnect();
       this.activeThunderSource = null;
     }
@@ -313,7 +344,10 @@ export class AudioEngine {
       const now = this.ctx.currentTime;
       this.rainGain.gain.cancelScheduledValues(now);
       this.rainGain.gain.setValueAtTime(this.rainGain.gain.value, now);
-      this.rainGain.gain.linearRampToValueAtTime(volume / 100, now + VOLUME_RAMP);
+      this.rainGain.gain.linearRampToValueAtTime(
+        volume / 100,
+        now + VOLUME_RAMP,
+      );
     }
   }
 
@@ -322,8 +356,14 @@ export class AudioEngine {
     if (this.activeThunderGain && this.ctx) {
       const now = this.ctx.currentTime;
       this.activeThunderGain.gain.cancelScheduledValues(now);
-      this.activeThunderGain.gain.setValueAtTime(this.activeThunderGain.gain.value, now);
-      this.activeThunderGain.gain.linearRampToValueAtTime(volume / 100, now + VOLUME_RAMP);
+      this.activeThunderGain.gain.setValueAtTime(
+        this.activeThunderGain.gain.value,
+        now,
+      );
+      this.activeThunderGain.gain.linearRampToValueAtTime(
+        volume / 100,
+        now + VOLUME_RAMP,
+      );
     }
   }
 
@@ -332,7 +372,11 @@ export class AudioEngine {
   stopAll(): void {
     this.stopRainSource();
     if (this.activeThunderSource) {
-      try { this.activeThunderSource.stop(); } catch { /* */ }
+      try {
+        this.activeThunderSource.stop();
+      } catch {
+        /* */
+      }
       this.activeThunderSource.disconnect();
       this.activeThunderSource = null;
     }
@@ -357,13 +401,17 @@ export class AudioEngine {
       rainVolume: this._rainVolume,
       thunderVolume: this._thunderVolume,
       thunderSoundsLoaded: this.thunderBuffers.length,
-      totalThunderSounds: THUNDER_BASES.length,
+      totalThunderSounds: this.thunderTotalCount,
       activeThunderFile: this._activeThunderFile,
     };
   }
 
   get loadingStatus() {
-    return { loading: this.loading, loaded: this.loaded, error: this.loadError };
+    return {
+      loading: this.loading,
+      loaded: this.loaded,
+      error: this.loadError,
+    };
   }
 
   getThunderCount(): number {
