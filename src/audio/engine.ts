@@ -6,9 +6,11 @@ const SOUNDS_DIR = `${import.meta.env.BASE_URL}sounds`;
 const AUDIO_EXTENSIONS = [".mp3", ".wav"] as const;
 
 const RAIN_BASE = "rain-loop";
-// A static host (GitHub Pages) can't list a directory, so we probe a bounded
-// range of thunder-N names at runtime and keep the ones that actually exist.
-const MAX_THUNDER_INDEX = 100;
+// A static host (GitHub Pages) can't list a directory, so we find the largest
+// contiguous thunder-N index with an exponential + binary search (O(log N)
+// checks) instead of probing every index. This is the hard upper bound the
+// search grows toward before giving up.
+const MAX_THUNDER_INDEX = 1_000_000;
 
 /** Fetch all available variants of a sound (tries .mp3, .wav)
  * Filters by content-type to avoid picking up SPA fallback HTML from dev servers. */
@@ -144,28 +146,19 @@ export class AudioEngine {
       }
     }
 
-    // Discover how many thunder sounds exist by probing thunder-1 .. thunder-N.
-    // fetchSoundVariants already skips anything that isn't real audio (e.g. an
-    // SPA 404 page), so a missing file simply yields no variants. Best-effort:
-    // a failure to load the pool never aborts the session (rain still works).
-    const results = await Promise.allSettled(
-      Array.from({ length: MAX_THUNDER_INDEX }, (_, i) => i + 1).map(async (i) => {
-        const base = `thunder-${i}`;
-        const variants = await fetchSoundVariants(base);
-        if (variants.length === 0) return null;
-        try {
-          const decoded = await this.ctx!.decodeAudioData(variants[0].buffer);
-          const name = variants[0].url.replace(SOUNDS_DIR + "/", "");
-          console.log(`[audio] loaded thunder: ${name}`);
-          return { buffer: decoded, name };
-        } catch (e) {
-          console.warn(`[audio] failed to decode: ${variants[0].url}`, e);
-          return null;
-        }
-      }),
-    );
+    // The pool is a contiguous run thunder-1..thunder-N. Find N with an
+    // exponential search + binary search (O(log N) existence checks), then
+    // decode 1..N in parallel. Best-effort: a load failure never aborts the
+    // session — rain still plays.
+    const maxIndex = await this.findMaxThunderIndex();
 
-    const loaded = results
+    const loaded = (
+      await Promise.allSettled(
+        Array.from({ length: maxIndex }, (_, i) => i + 1).map((i) =>
+          this.decodeThunder(i),
+        ),
+      )
+    )
       .filter(
         (
           r,
@@ -174,7 +167,75 @@ export class AudioEngine {
       )
       .map((r) => r.value!);
     this.thunderBuffers = loaded;
-    this.thunderTotalCount = loaded.length;
+    this.thunderTotalCount = maxIndex;
+  }
+
+  /**
+   * Find the largest contiguous thunder index (thunder-1..thunder-N) that
+   * exists. Double the probe index until one is missing (1, 2, 4, 8, …), then
+   * binary-search the gap. O(log N) existence checks.
+   */
+  private async findMaxThunderIndex(): Promise<number> {
+    let bound = 1;
+    while (bound < MAX_THUNDER_INDEX && (await this.thunderExists(bound))) {
+      bound *= 2;
+    }
+    // thunderExists(bound) is now false; the answer lies in (bound/2, bound].
+    let lo = Math.max(0, Math.floor(bound / 2));
+    let hi = bound;
+    while (lo < hi - 1) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (await this.thunderExists(mid)) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    return lo;
+  }
+
+  /** True if thunder-<index>.mp3 or .wav exists and is real audio. */
+  private async thunderExists(index: number): Promise<boolean> {
+    for (const ext of AUDIO_EXTENSIONS) {
+      const url = `${SOUNDS_DIR}/thunder-${index}${ext}`;
+      try {
+        const resp = await fetch(url);
+        if (resp.ok && resp.headers.get("content-type")?.startsWith("audio/")) {
+          // Only status + content-type matter — drop the body to free memory.
+          await resp.body?.cancel();
+          return true;
+        }
+      } catch {
+        // Network hiccup on this extension; try the other one.
+      }
+    }
+    return false;
+  }
+
+  /** Fetch and decode a single thunder sound (tries .mp3, then .wav). */
+  private async decodeThunder(
+    index: number,
+  ): Promise<{ buffer: AudioBuffer; name: string } | null> {
+    if (!this.ctx) return null;
+    for (const ext of AUDIO_EXTENSIONS) {
+      const url = `${SOUNDS_DIR}/thunder-${index}${ext}`;
+      try {
+        const resp = await fetch(url);
+        if (
+          !resp.ok ||
+          !resp.headers.get("content-type")?.startsWith("audio/")
+        ) {
+          continue;
+        }
+        const decoded = await this.ctx.decodeAudioData(await resp.arrayBuffer());
+        const name = url.replace(SOUNDS_DIR + "/", "");
+        console.log(`[audio] loaded thunder: ${name}`);
+        return { buffer: decoded, name };
+      } catch (e) {
+        console.warn(`[audio] failed to decode: ${url}`, e);
+      }
+    }
+    return null;
   }
 
   // ---- Thunder file info ----
