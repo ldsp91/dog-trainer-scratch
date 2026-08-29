@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
@@ -44,6 +44,34 @@ function AppContent() {
   const handleStop = useCallback(() => {
     stopSession();
   }, [stopSession]);
+
+  // Refs so the visibility handler below always sees the latest values
+  // without re-subscribing on every state change.
+  const isPlayingRef = useRef(state.isPlaying);
+  isPlayingRef.current = state.isPlaying;
+  const rainVolumeRef = useRef(settings.rainVolume);
+  rainVolumeRef.current = settings.rainVolume;
+
+  // When the app is minimized (Home / Recent-Apps on Android, Home / app
+  // switcher on iOS) the page becomes hidden while audio keeps running in
+  // the background. Stop the session in that case, and restart it when the
+  // user comes back — but only if the session was active when they left.
+  useEffect(() => {
+    let wasActiveBeforeHidden = false;
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        if (isPlayingRef.current) {
+          wasActiveBeforeHidden = true;
+          stopSession();
+        }
+      } else if (wasActiveBeforeHidden) {
+        wasActiveBeforeHidden = false;
+        startSession(rainVolumeRef.current);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [startSession, stopSession]);
 
   const handleThunder = useCallback(() => {
     if (thunderPlaying) {
