@@ -1,3 +1,11 @@
 {
-  "$schema": "node_modules/anvil/anvil.schema.json"
+  "$schema": "https://raw.githubusercontent.com/ldsp91/anvil/main/anvil.schema.json",
+  "maxIterations": 5,
+  "models": {
+    "workflows": {
+      "init": "",
+      "placeholder": ""
+    },
+    "subagents": {}
+  }
 }
