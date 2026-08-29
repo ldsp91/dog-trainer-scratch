@@ -31,7 +31,7 @@ export function VolumeSliders({
           min="0"
           max="100"
           step="1"
-          value={rainVolume}
+          defaultValue={rainVolume}
           onChange={(e) => onRainChange(Number(e.currentTarget.value))}
           onInput={(e) => onRainChange(Number(e.currentTarget.value))}
           aria-label={t('volume.rainVolume')}
@@ -49,7 +49,7 @@ export function VolumeSliders({
           min="0"
           max="100"
           step="1"
-          value={thunderVolume}
+          defaultValue={thunderVolume}
           onChange={(e) => onThunderChange(Number(e.currentTarget.value))}
           onInput={(e) => onThunderChange(Number(e.currentTarget.value))}
           aria-label={t('volume.thunderVolume')}
