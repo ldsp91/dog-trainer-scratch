@@ -1,3 +1,5 @@
+import { useI18n } from '../i18n';
+
 interface Props {
   isPlaying: boolean;
   onPlay: () => void;
@@ -5,11 +7,13 @@ interface Props {
 }
 
 export function SessionControl({ isPlaying, onPlay, onStop }: Props) {
+  const { t } = useI18n();
+
   return (
     <button
       className={`session-icon-btn ${isPlaying ? 'playing' : 'stopped'}`}
       onClick={isPlaying ? onStop : onPlay}
-      aria-label={isPlaying ? 'Stop training session' : 'Start training session'}
+      aria-label={isPlaying ? t('session.stop') : t('session.start')}
     >
       <span className="session-icon-btn-icon" aria-hidden="true">
         {isPlaying ? '■' : '▶'}

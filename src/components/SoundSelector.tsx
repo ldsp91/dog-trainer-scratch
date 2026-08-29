@@ -1,3 +1,5 @@
+import { useI18n } from '../i18n';
+
 interface Props {
   /** -1 = random, otherwise 0-based index into the thunder sound pool */
   selectedIndex: number;
@@ -9,17 +11,19 @@ interface Props {
 }
 
 export function SoundSelector({ selectedIndex, count, onselect, activeFile }: Props) {
+  const { t } = useI18n();
+
   if (count === 0) return null;
 
   const activeNumber = activeFile?.match(/^thunder-(\d+)/)?.[1];
 
   return (
-    <div className="sound-selector" role="group" aria-label="Select thunder sound">
+    <div className="sound-selector" role="group" aria-label={t('soundSelector.group')}>
       <div className="sound-selector-header">
         <span className="sound-selector-label">
-          Sound
+          {t('soundSelector.label')}
           <span className="sound-active-hint">
-            (currently playing: {activeNumber ?? "-"})
+            {t('soundSelector.current', { n: activeNumber ?? '-' })}
           </span>
         </span>
       </div>
@@ -29,7 +33,7 @@ export function SoundSelector({ selectedIndex, count, onselect, activeFile }: Pr
           className={`sound-btn ${selectedIndex === -1 ? 'selected' : ''}`}
           onClick={() => onselect(-1)}
           aria-pressed={selectedIndex === -1}
-          aria-label="Random thunder sound"
+          aria-label={t('soundSelector.random')}
         >
           <span aria-hidden="true">🎲</span>
         </button>
@@ -41,7 +45,7 @@ export function SoundSelector({ selectedIndex, count, onselect, activeFile }: Pr
             className={`sound-btn ${selectedIndex === i ? 'selected' : ''}`}
             onClick={() => onselect(i)}
             aria-pressed={selectedIndex === i}
-            aria-label={`Thunder sound ${i + 1}`}
+            aria-label={t('soundSelector.sound', { n: i + 1 })}
           >
             <span aria-hidden="true">⚡</span>
             <span>{i + 1}</span>

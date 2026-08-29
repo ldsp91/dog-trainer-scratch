@@ -1,11 +1,8 @@
 {
   "name": "Thunder Trainer",
   "short_name": "Thunder Trainer",
+  "lang": "en",
   "description": "Controlled thunder exposure training for thunder-phobic dogs",
-  "i18n": {
-    "en": "manifest.en.json",
-    "de": "manifest.de.json"
-  },
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

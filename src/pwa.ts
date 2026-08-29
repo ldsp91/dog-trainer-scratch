@@ -1,3 +1,5 @@
+import { resolveLanguage, translateFor } from './i18n';
+
 // Registers the service worker for offline support.
 //
 // The SW is a static file served from the site root (public/sw.js -> dist/sw.js),
@@ -37,7 +39,11 @@ export function registerServiceWorker(): void {
           if (!installing) return;
           installing.onstatechange = () => {
             if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-              if (window.confirm('An update is available. Reload now?')) {
+              if (
+                window.confirm(
+                  translateFor(resolveLanguage(), 'pwa.update'),
+                )
+              ) {
                 navigator.serviceWorker.controller.postMessage('clientsClaim');
                 window.location.reload();
               }

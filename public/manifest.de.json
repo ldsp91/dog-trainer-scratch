@@ -1,11 +1,8 @@
 {
   "name": "Thunder Trainer",
   "short_name": "Thunder Trainer",
-  "description": "Controlled thunder exposure training for thunder-phobic dogs",
-  "i18n": {
-    "en": "manifest.en.json",
-    "de": "manifest.de.json"
-  },
+  "lang": "de",
+  "description": "Gestufte Desensibilisierung für gewitterängstliche Hunde",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

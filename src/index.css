@@ -74,6 +74,7 @@ header h1 {
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .subtitle {
@@ -127,6 +128,89 @@ main {
   font-size: 0.9rem;
   line-height: 1;
   margin-left: 0.06em; /* optical tweak so the play triangle reads centered */
+}
+
+/* ===== Language Switcher ===== */
+/* Compact flag dropdown next to the session button. */
+.lang-switcher {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.lang-dropdown-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 36px;
+  padding: 0 9px;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  border-radius: 999px;
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.lang-dropdown-btn:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(100, 116, 139, 0.5);
+}
+
+.lang-dropdown-btn:active { transform: scale(0.94); }
+
+.lang-flag {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.lang-caret {
+  font-size: 0.7rem;
+  line-height: 1;
+  color: var(--text-secondary);
+}
+
+.lang-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  min-width: 150px;
+  padding: 4px;
+  background: var(--bg-card);
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lang-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.lang-menu-item:hover { background: var(--bg-card-hover); }
+
+.lang-menu-item.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.lang-check {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--accent);
 }
 
 /* ===== Sound Selector ===== */

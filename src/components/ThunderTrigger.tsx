@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 
+import { useI18n } from '../i18n';
+
 interface Props {
   onTrigger: () => void;
   disabled: boolean;
@@ -8,6 +10,7 @@ interface Props {
 
 export function ThunderTrigger({ onTrigger, disabled, isPlaying }: Props) {
   const [pressed, setPressed] = useState(false);
+  const { t } = useI18n();
 
   const handleClick = useCallback(() => {
     if (disabled) return;
@@ -21,7 +24,7 @@ export function ThunderTrigger({ onTrigger, disabled, isPlaying }: Props) {
       className={`thunder-btn ${isPlaying ? 'playing' : ''} ${pressed ? 'pressed' : ''}`}
       onClick={handleClick}
       disabled={disabled}
-      aria-label={isPlaying ? "Stop thunder clap" : "Play thunder clap"}
+      aria-label={isPlaying ? t('thunder.stop') : t('thunder.play')}
     >
       <span className="thunder-icon" aria-hidden="true">⚡</span>
     </button>

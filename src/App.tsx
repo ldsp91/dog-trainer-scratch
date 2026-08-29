@@ -1,16 +1,19 @@
 import { useCallback } from 'react';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { SessionControl } from './components/SessionControl';
 import { SoundSelector } from './components/SoundSelector';
 import { SoundVisualizer } from './components/SoundVisualizer';
 import { ThunderTrigger } from './components/ThunderTrigger';
 import { VolumeSliders } from './components/VolumeSliders';
+import { useI18n } from './i18n';
 import { useAudioEngine } from './hooks/useAudioEngine';
 import { useAudioSettings } from './hooks/useAudioSettings';
 
 function AppContent() {
+  const { t } = useI18n();
   const { settings, setRainVolume, setThunderVolume } = useAudioSettings();
   const {
     analyser,
@@ -79,13 +82,12 @@ function AppContent() {
   if (error) {
     return (
       <div className="error-screen">
-        <h2>⚠️ Audio Error</h2>
+        <h2>{t('errors.audioTitle')}</h2>
         <p>{error}</p>
         <p className="error-hint">
-          Make sure sound files (.mp3 or .wav) exist in{" "}
-          <code>public/sounds/</code>
+          {t('errors.audioHint')} <code>public/sounds/</code>
         </p>
-        <button onClick={() => window.location.reload()}>Try Again</button>
+        <button onClick={() => window.location.reload()}>{t('errors.tryAgain')}</button>
       </div>
     );
   }
@@ -96,14 +98,15 @@ function AppContent() {
     <div className="app">
       <header>
         <div className="title-row">
-          <h1>⛈️ Thunder Trainer</h1>
+          <h1>{t('app.title')}</h1>
           <SessionControl
             isPlaying={sessionActive}
             onPlay={handlePlay}
             onStop={handleStop}
           />
+          <LanguageSwitcher />
         </div>
-        <p className="subtitle">Controlled exposure for thunder-phobic dogs</p>
+        <p className="subtitle">{t('app.subtitle')}</p>
       </header>
 
       <main>
@@ -124,8 +127,8 @@ function AppContent() {
         <div className="status-row">
           <p className={`active-sound ${activeThunderFile ? "active" : ""}`}>
             {activeThunderFile
-              ? `🔊 ${activeThunderFile}`
-              : "⏸️ No thunder playing"}
+              ? t('status.playing', { file: activeThunderFile })
+              : t('status.none')}
           </p>
         </div>
 
@@ -145,8 +148,7 @@ function AppContent() {
 
         {thunderCount === 0 && loaded && (
           <p className="warning">
-            ⚠️ No thunder sounds found. Add .mp3 or .wav files to{" "}
-            <code>public/sounds/</code>
+            {t('warning.noSounds')} <code>public/sounds/</code>
           </p>
         )}
       </main>

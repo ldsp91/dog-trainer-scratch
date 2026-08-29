@@ -2,7 +2,7 @@
 // Served statically from GitHub Pages (no build step), so it lives in public/
 // and is copied to dist root by Vite. Register it from src/main.tsx.
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2'; // bumped: i18n + localized manifests added
 const SHELL_CACHE = `trainer-shell-${CACHE_VERSION}`;
 
 // App-shell assets to pre-cache on install so the app works offline.
@@ -11,6 +11,8 @@ const SHELL_ASSETS = [
   '/',
   './',
   'manifest.json',
+  'manifest.en.json',
+  'manifest.de.json',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/icon-512-maskable.png',
