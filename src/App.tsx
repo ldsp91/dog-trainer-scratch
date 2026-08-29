@@ -1,16 +1,22 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoadingOverlay } from './components/LoadingOverlay';
 import { SessionControl } from './components/SessionControl';
 import { SoundSelector } from './components/SoundSelector';
+import { SoundVisualizer } from './components/SoundVisualizer';
 import { ThunderTrigger } from './components/ThunderTrigger';
 import { VolumeSliders } from './components/VolumeSliders';
 import { useAudioEngine } from './hooks/useAudioEngine';
 import { useAudioSettings } from './hooks/useAudioSettings';
 
+const VIZ_PREF_KEY = 'thunder-trainer:visualizer';
+
 function AppContent() {
   const { settings, setRainVolume, setThunderVolume } = useAudioSettings();
   const {
+    analyser,
+    envelope,
+    getThunderElapsed,
     state,
     loading,
     loaded,
@@ -60,6 +66,21 @@ function AppContent() {
     [setThunderVolume, setEngineThunderVolume]
   );
 
+  // Visualizer is on by default unless the user disabled it or prefers
+  // reduced motion. It's decorative only — toggling never affects audio.
+  const [vizEnabled, setVizEnabled] = useState<boolean>(() => {
+    const stored = localStorage.getItem(VIZ_PREF_KEY);
+    if (stored !== null) return stored === '1';
+    return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  });
+
+  const toggleViz = useCallback(() => {
+    setVizEnabled((v) => {
+      localStorage.setItem(VIZ_PREF_KEY, v ? '0' : '1');
+      return !v;
+    });
+  }, []);
+
   // Loading state
   if (loading) {
     return (
@@ -101,13 +122,35 @@ function AppContent() {
       </header>
 
       <main>
-        <ThunderTrigger
-          onTrigger={handleThunder}
-          disabled={!sessionActive}
-          isPlaying={thunderPlaying}
-        />
+        <div className="thunder-zone">
+          {vizEnabled && (
+            <SoundVisualizer
+              analyser={analyser}
+              active={sessionActive}
+              envelope={envelope}
+              getElapsed={getThunderElapsed}
+            />
+          )}
+          <ThunderTrigger
+            onTrigger={handleThunder}
+            disabled={!sessionActive}
+            isPlaying={thunderPlaying}
+          />
+        </div>
 
-        <p className={`active-sound ${activeThunderFile ? 'active' : ''}`}>{activeThunderFile ? `🔊 ${activeThunderFile}` : '⏸️ No thunder playing'}</p>
+        <div className="status-row">
+          <p className={`active-sound ${activeThunderFile ? 'active' : ''}`}>{activeThunderFile ? `🔊 ${activeThunderFile}` : '⏸️ No thunder playing'}</p>
+          <button
+            type="button"
+            className={`icon-toggle ${vizEnabled ? 'on' : ''}`}
+            onClick={toggleViz}
+            aria-pressed={vizEnabled}
+            aria-label={vizEnabled ? 'Hide sound visualizer' : 'Show sound visualizer'}
+            title="Sound visualizer"
+          >
+            <span aria-hidden="true">📊</span>
+          </button>
+        </div>
 
         <SoundSelector
           selectedIndex={selectedThunderIndex}

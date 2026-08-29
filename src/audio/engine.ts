@@ -1,4 +1,4 @@
-import type { PlaybackState } from "../types";
+import type { PlaybackState, ThunderEnvelope } from "../types";
 
 // Base-aware so audio is served from the deployed subpath (e.g. /dog-trainer-scratch/sounds/),
 // not a hardcoded root. import.meta.env.BASE_URL mirrors the `base` in vite.config.ts.
@@ -37,6 +37,7 @@ export class AudioEngine {
   private rainSource: AudioBufferSourceNode | null = null;
   private rainGain: GainNode | null = null;
   private masterGain: GainNode | null = null;
+  private analyser: AnalyserNode | null = null;
 
   private rainBuffer: AudioBuffer | null = null;
   private thunderBuffers: { buffer: AudioBuffer; name: string }[] = [];
@@ -54,6 +55,9 @@ export class AudioEngine {
   private _activeThunderFile: string | null = null;
   private _selectedThunderIndex = -1; // -1 = random; otherwise index into thunderBuffers
   private thunderGen = 0; // increments each new clap; stale callbacks are no-ops
+  private activeThunderIndex: number | null = null; // buffer index of the active clap
+  private activeThunderStart = 0; // AudioContext time the active clap started
+  private envelopeCache = new Map<number, ThunderEnvelope>();
   private onThunderStateChange: ((playing: boolean) => void) | null = null;
   private onActiveThunderFileChange: ((file: string | null) => void) | null =
     null;
@@ -106,7 +110,14 @@ export class AudioEngine {
 
     this.masterGain = this.ctx.createGain();
     this.masterGain.gain.value = 1;
-    this.masterGain.connect(this.ctx.destination);
+
+    // Passive tap for the SoundVisualizer — masterGain → analyser → speakers.
+    // The analyser only observes the signal; it doesn't alter the sound.
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 256; // 128 bins, plenty for a 40-bar ring
+    this.analyser.smoothingTimeConstant = 0.8;
+    this.masterGain.connect(this.analyser);
+    this.analyser.connect(this.ctx.destination);
 
     this.rainGain = this.ctx.createGain();
     this.rainGain.gain.value = 0;
@@ -244,6 +255,13 @@ export class AudioEngine {
     return this._activeThunderFile;
   }
 
+  // ---- Visualizer ----
+
+  /** The tap for spectrum rendering, or null before init(). */
+  getAnalyser(): AnalyserNode | null {
+    return this.analyser;
+  }
+
   // ---- Rain ----
 
   startRain(volume: number, fadeDuration = FADE_DURATION): void {
@@ -363,11 +381,14 @@ export class AudioEngine {
     source.start(start);
     source.stop(start + buffer.duration);
     this.activeThunderSource = source;
+    this.activeThunderIndex = idx;
+    this.activeThunderStart = start;
     this.notifyThunderState(true, gen);
     source.onended = () => {
       source.disconnect();
       clapGain.disconnect();
       this.activeThunderSource = null;
+      this.activeThunderIndex = null;
       this.activeThunderGain = null;
       this._activeThunderFile = null;
       this.onActiveThunderFileChange?.(null);
@@ -387,6 +408,7 @@ export class AudioEngine {
       this.activeThunderSource.disconnect();
       this.activeThunderSource = null;
     }
+    this.activeThunderIndex = null;
     if (this.activeThunderGain) {
       this.activeThunderGain.disconnect();
       this.activeThunderGain = null;
@@ -441,6 +463,7 @@ export class AudioEngine {
       this.activeThunderSource.disconnect();
       this.activeThunderSource = null;
     }
+    this.activeThunderIndex = null;
     if (this.activeThunderGain) {
       this.activeThunderGain.disconnect();
       this.activeThunderGain = null;
@@ -451,6 +474,70 @@ export class AudioEngine {
       this.rainGain.gain.setValueAtTime(0, this.ctx.currentTime);
     }
     this.isPlaying = false;
+  }
+
+  // ---- Thunder shape (envelope) ----
+
+  /**
+   * Peak envelope of the clap in focus: the one currently playing, otherwise
+   * the explicitly selected one (null for random / none). Lets the UI show the
+   * full shape of a clap — including upcoming loud peaks — before they hit.
+   */
+  getFocusedThunderEnvelope(): ThunderEnvelope | null {
+    const idx =
+      this.activeThunderIndex ??
+      (this._selectedThunderIndex >= 0 ? this._selectedThunderIndex : -1);
+    if (idx < 0 || idx >= this.thunderBuffers.length) return null;
+    return this.getThunderEnvelope(idx);
+  }
+
+  /**
+   * Downsampled peak envelope of thunderBuffers[index], normalized so the
+   * loudest bucket is 1.0. `buckets` values, one per ring position. Cached
+   * per file; spikes are preserved (they are the point).
+   */
+  getThunderEnvelope(index: number, buckets = 96): ThunderEnvelope | null {
+    const entry = this.thunderBuffers[index];
+    if (!entry) return null;
+    const cached = this.envelopeCache.get(index);
+    if (cached) return cached;
+
+    const samples = entry.buffer.getChannelData(0);
+    const peaks = new Float32Array(buckets);
+    const per = samples.length / buckets;
+    for (let b = 0; b < buckets; b++) {
+      const start = Math.floor(b * per);
+      const end = Math.min(samples.length, Math.floor((b + 1) * per));
+      // Stride-scan up to 256 samples per bucket — ~6 ms windows at 44.1 kHz,
+      // cheap and enough to catch every real transient without single-sample
+      // artifacts.
+      const stride = Math.max(1, Math.floor((end - start) / 256));
+      let peak = 0;
+      for (let i = start; i < end; i += stride) {
+        const a = Math.abs(samples[i]);
+        if (a > peak) peak = a;
+      }
+      peaks[b] = peak;
+    }
+
+    let max = 0;
+    for (let b = 0; b < buckets; b++) if (peaks[b] > max) max = peaks[b];
+    if (max > 0) {
+      for (let b = 0; b < buckets; b++) peaks[b] /= max;
+    }
+
+    const envelope = { peaks, duration: entry.buffer.duration };
+    this.envelopeCache.set(index, envelope);
+    return envelope;
+  }
+
+  /** Seconds since the active clap started (0..duration), or null. */
+  getThunderElapsed(): number | null {
+    if (!this.activeThunderSource || !this.ctx || this.activeThunderIndex === null) {
+      return null;
+    }
+    const duration = this.thunderBuffers[this.activeThunderIndex]?.buffer.duration ?? 0;
+    return Math.min(Math.max(this.ctx.currentTime - this.activeThunderStart, 0), duration);
   }
 
   // ---- State ----

@@ -1,8 +1,14 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
 import { AudioEngine } from '../audio/engine';
-import type { PlaybackState } from '../types';
+import type { PlaybackState, ThunderEnvelope } from '../types';
 
 interface UseAudioEngineReturn {
+  /** Spectrum tap for the SoundVisualizer; null until the engine is ready. */
+  analyser: AnalyserNode | null;
+  /** Shape of the clap in focus (playing, or selected) for the SoundVisualizer. */
+  envelope: ThunderEnvelope | null;
+  /** Elapsed seconds of the active clap; polled per frame by the visualizer. */
+  getThunderElapsed: () => number | null;
   state: PlaybackState;
   loading: boolean;
   loaded: boolean;
@@ -37,6 +43,8 @@ export function useAudioEngine(): UseAudioEngineReturn {
   const [thunderPlaying, setThunderPlaying] = useState(false);
   const [activeThunderFile, setActiveThunderFile] = useState<string | null>(null);
   const [selectedThunderIndex, setSelectedThunderIndex] = useState<number>(-1);
+  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+  const [envelope, setEnvelope] = useState<ThunderEnvelope | null>(null);
 
   useEffect(() => {
     if (engine.current) return;
@@ -64,6 +72,7 @@ export function useAudioEngine(): UseAudioEngineReturn {
       }
       setState(audio.getState());
       setThunderCount(audio.getThunderCount());
+      setAnalyser(audio.getAnalyser());
     }).catch((err) => {
       setLoading(false);
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -75,6 +84,19 @@ export function useAudioEngine(): UseAudioEngineReturn {
       setState(engine.current.getState());
       setThunderCount(engine.current.getThunderCount());
     }
+  }, []);
+
+  // Re-resolve the shape of the clap in focus whenever the playing clap or
+  // the selection changes: playing clap wins, otherwise the explicit
+  // selection (so a chosen sound previews its shape before it's triggered).
+  useEffect(() => {
+    if (engine.current) {
+      setEnvelope(engine.current.getFocusedThunderEnvelope());
+    }
+  }, [thunderPlaying, activeThunderFile, selectedThunderIndex]);
+
+  const getThunderElapsed = useCallback(() => {
+    return engine.current?.getThunderElapsed() ?? null;
   }, []);
 
   const startSession = useCallback((rainVolume: number) => {
@@ -109,6 +131,9 @@ export function useAudioEngine(): UseAudioEngineReturn {
   }, []);
 
   return {
+    analyser,
+    envelope,
+    getThunderElapsed,
     state,
     thunderPlaying,
     loading,
