@@ -4,15 +4,24 @@ interface Props {
   /** total number of thunder sounds available */
   count: number;
   onselect: (index: number) => void;
+  /** name of the file currently playing (e.g. "thunder-3.mp3"), or null */
+  activeFile: string | null;
 }
 
-export function SoundSelector({ selectedIndex, count, onselect }: Props) {
+export function SoundSelector({ selectedIndex, count, onselect, activeFile }: Props) {
   if (count === 0) return null;
+
+  const activeNumber = activeFile?.match(/^thunder-(\d+)/)?.[1];
 
   return (
     <div className="sound-selector" role="group" aria-label="Select thunder sound">
       <div className="sound-selector-header">
-        <span className="sound-selector-label">Sound</span>
+        <span className="sound-selector-label">
+          Sound
+          <span className="sound-active-hint">
+            (currently playing: {activeNumber ?? "-"})
+          </span>
+        </span>
       </div>
       <div className="sound-buttons">
         <button
