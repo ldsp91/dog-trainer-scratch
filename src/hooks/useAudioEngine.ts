@@ -21,7 +21,8 @@ interface UseAudioEngineReturn {
   selectedThunderIndex: number;
   startSession: (rainVolume: number) => void;
   stopSession: () => void;
-  playThunder: () => boolean;
+  /** Trigger a clap; `bypassAntiSpam` skips the debounce (sound-selection auto-play). */
+  playThunder: (bypassAntiSpam?: boolean) => boolean;
   stopThunder: () => void;
   setSelectedThunderIndex: (index: number) => void;
   setRainVolume: (v: number) => void;
@@ -138,8 +139,8 @@ export function useAudioEngine(): UseAudioEngineReturn {
     refresh();
   }, [refresh]);
 
-  const playThunder = useCallback(() => {
-    return engine.current?.playThunder() ?? false;
+  const playThunder = useCallback((bypassAntiSpam = false) => {
+    return engine.current?.playThunder(bypassAntiSpam) ?? false;
   }, []);
 
   const stopThunder = useCallback(() => {

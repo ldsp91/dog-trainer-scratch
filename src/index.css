@@ -57,7 +57,7 @@ body {
 
 header {
   text-align: center;
-  padding: 1.25rem 0 0.5rem;
+  padding: 0.5rem 0 0.5rem;
   width: 100%;
 }
 
@@ -87,7 +87,7 @@ main {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1.25rem;
   width: 100%;
   flex: 1;
   padding-bottom: 2rem;
@@ -319,7 +319,6 @@ input[type='range'] {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 0.5rem;
   width: 240px;
   height: 240px;
 }

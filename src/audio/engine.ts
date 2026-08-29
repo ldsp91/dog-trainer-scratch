@@ -354,12 +354,19 @@ export class AudioEngine {
 
   // ---- Thunder ----
 
-  playThunder(): boolean {
+  /**
+   * Trigger a clap. `bypassAntiSpam` skips the debounce — used when a new
+   * sound selection auto-plays, since the user's intent to interrupt is
+   * explicit and the old clap has already been stopped.
+   */
+  playThunder(bypassAntiSpam = false): boolean {
     if (!this.ctx || this.thunderBuffers.length === 0) return false;
     if (this.ctx.state === "suspended") this.ctx.resume();
 
     const now = Date.now();
-    if (now - this.lastThunderTime < ANTI_SPAM_DELAY) return false;
+    if (!bypassAntiSpam && now - this.lastThunderTime < ANTI_SPAM_DELAY) {
+      return false;
+    }
     this.lastThunderTime = now;
 
     // Pick the thunder sound: explicit selection if set, otherwise random
@@ -411,6 +418,11 @@ export class AudioEngine {
     source.onended = () => {
       source.disconnect();
       clapGain.disconnect();
+      // onended fires asynchronously. If this clap was interrupted (a newer
+      // clap started or stopThunder ran), a newer generation owns the shared
+      // state now — touching it here would un-track the active clap, so the
+      // next switch would never stop it and the UI would lose the file/progress.
+      if (gen < this.thunderGen) return;
       this.activeThunderSource = null;
       this.activeThunderIndex = null;
       this.activeThunderGain = null;

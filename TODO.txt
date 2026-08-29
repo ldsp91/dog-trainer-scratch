@@ -1,2 +1,1 @@
-- Auto start von Session
 - Bei Auswahl von Sound soll automatisch abgepsielt werden

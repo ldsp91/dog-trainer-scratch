@@ -53,6 +53,23 @@ function AppContent() {
     playThunder();
   }, [thunderPlaying, playThunder, stopThunder]);
 
+  // Selecting a sound auto-plays it (like tapping the thunder button).
+  // setSelectedThunderIndex already interrupts any clap that's currently
+  // playing, so the new selection always wins — and because the play goes
+  // through the normal thunder path, the visualizer and the stop behavior
+  // of the thunder button track the newly active clap.
+  const handleSelectSound = useCallback(
+    (index: number) => {
+      setSelectedThunderIndex(index);
+      if (state.isPlaying) {
+        // Bypass the anti-spam debounce: rapid sound switching is explicit
+        // intent and must always take effect.
+        playThunder(true);
+      }
+    },
+    [setSelectedThunderIndex, state.isPlaying, playThunder],
+  );
+
   const handleRainChange = useCallback(
     (v: number) => {
       setRainVolume(v);
@@ -143,7 +160,7 @@ function AppContent() {
         <SoundSelector
           selectedIndex={selectedThunderIndex}
           count={thunderCount}
-          onselect={setSelectedThunderIndex}
+          onselect={handleSelectSound}
           activeFile={activeThunderFile}
         />
 
