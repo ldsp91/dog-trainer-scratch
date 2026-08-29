@@ -17,7 +17,7 @@ interface Props {
 
 // The ring is drawn entirely OUTSIDE the thunder button (the canvas is also
 // pointer-events: none), so it can never cover or block the button.
-const MAP_BARS = 96; // matches the engine's envelope bucket count (1:1)
+const MAP_BARS = 140; // matches the engine's envelope bucket count (1:1)
 const SPECTRUM_BARS = 40; // fallback live-spectrum mode
 const BINS = SPECTRUM_BARS / 2;
 const FIRST_BIN = 2; // skip DC + subsonic bins
@@ -41,11 +41,11 @@ function mixColor(t: number): [number, number, number] {
  * Time map around the thunder button.
  *
  * Primary mode (envelope present): the ring IS the clap — one ring position
- * per moment of the file, bar length = peak amplitude at that time. The
- * playhead sweeps from the top clockwise as the sound plays, so what lies
- * AHEAD of it is exactly what is coming: loud peaks are marked orange, and
- * you can see a sudden bang coming before it hits. Before a clap starts
- * (a specific sound selected), the same map previews the shape you'll get.
+ * per moment of the file, bar length = peak amplitude at that time. Loud
+ * peaks are marked orange. Play position is shown via opacity: bars for the
+ * part of the clap that has already played are drawn at high opacity, while
+ * what has not been played yet stays dim. Before a clap starts (a specific
+ * sound selected), the whole map is dim, previewing the shape you'll get.
  *
  * Fallback (no single file in focus, e.g. random): a live frequency spectrum.
  * Decorative only — aria-hidden, pointer-events: none, never gates audio.
@@ -145,36 +145,20 @@ export function SoundVisualizer({ analyser, active, envelope, getElapsed }: Prop
       const width = Math.max(2, step * 0.5);
       for (let i = 0; i < MAP_BARS; i++) {
         const v = peaks[Math.min(i, peaks.length - 1)];
-        // "ahead" = between the playhead and the end of the file (what comes
-        // next). With no playhead (preview of a selected, not-yet-played
-        // sound) the whole ring is upcoming.
-        const ahead = p === null || (i / MAP_BARS - p + 1) % 1 > 0.004;
+        // Bars at/behind the playhead are "played" (high opacity); bars
+        // ahead of it (or the whole ring with no playhead, i.e. preview of
+        // a selected, not-yet-played sound) are dim.
+        const played = p !== null && i / MAP_BARS - p <= 0.004;
         const color =
           v >= PEAK_T
-            ? 'rgba(249, 115, 22, 0.95)' // loud peak — the "bang" marker
-            : ahead
-              ? 'rgba(56, 189, 248, 0.55)' // upcoming
-              : 'rgba(100, 116, 139, 0.3)'; // already played
+            ? `rgba(249, 115, 22, ${played ? 0.95 : 0.4})` // loud peak — the "bang" marker
+            : `rgba(56, 189, 248, ${played ? 0.85 : 0.3})`;
         bar(
           i / MAP_BARS,
           MAP_BAR + Math.pow(v, 0.55) * (maxLen - MAP_BAR),
           color,
           width,
         );
-      }
-
-      if (p !== null) {
-        const a = angleOf(p);
-        ctx.fillStyle = 'rgba(226, 232, 240, 0.95)';
-        ctx.beginPath();
-        ctx.arc(
-          center + Math.cos(a) * (inner + 5),
-          center + Math.sin(a) * (inner + 5),
-          4,
-          0,
-          Math.PI * 2,
-        );
-        ctx.fill();
       }
     };
 

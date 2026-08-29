@@ -520,7 +520,7 @@ export class AudioEngine {
    * loudest bucket is 1.0. `buckets` values, one per ring position. Cached
    * per file; spikes are preserved (they are the point).
    */
-  getThunderEnvelope(index: number, buckets = 96): ThunderEnvelope | null {
+  getThunderEnvelope(index: number, buckets = 140): ThunderEnvelope | null {
     const entry = this.thunderBuffers[index];
     if (!entry) return null;
     const cached = this.envelopeCache.get(index);
