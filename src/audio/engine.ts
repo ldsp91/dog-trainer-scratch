@@ -1,6 +1,8 @@
 import type { PlaybackState } from '../types';
 
-const SOUNDS_DIR = '/sounds';
+// Base-aware so audio is served from the deployed subpath (e.g. /dog-trainer-scratch/sounds/),
+// not a hardcoded root. import.meta.env.BASE_URL mirrors the `base` in vite.config.ts.
+const SOUNDS_DIR = `${import.meta.env.BASE_URL}sounds`;
 const AUDIO_EXTENSIONS = ['.mp3', '.wav'] as const;
 
 const RAIN_BASE = 'rain-loop';
