@@ -70,6 +70,11 @@ export class AudioEngine {
 
   setSelectedThunderIndex(index: number): void {
     this._selectedThunderIndex = index;
+    // Changing the selected sound interrupts any thunder currently playing,
+    // so the new selection takes effect instead of letting the old one finish.
+    if (this.activeThunderSource) {
+      this.stopThunder();
+    }
     this.onSelectedThunderChange?.(index);
   }
 
