@@ -71,6 +71,11 @@ export class AudioEngine {
   }
 
   setSelectedThunderIndex(index: number): void {
+    if (index === this._selectedThunderIndex) {
+      // Re-selecting the already-selected sound is a no-op — don't interrupt
+      // a thunder that is currently playing.
+      return;
+    }
     this._selectedThunderIndex = index;
     // Changing the selected sound interrupts any thunder currently playing,
     // so the new selection takes effect instead of letting the old one finish.
